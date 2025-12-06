@@ -122,6 +122,7 @@ components:
           format: email
         password:
           type: string
+          format: password
         role:
           type: string
           enum: [ADMIN, TEACHER, STUDENT]
@@ -154,9 +155,13 @@ components:
 
     LoginResponse:
       type: object
+      required:
+        - message
+        - token
       properties:
         token:
           type: string
+          description: JWT token for subsequent authenticated requests
         expiresIn:
           type: integer
         username:
