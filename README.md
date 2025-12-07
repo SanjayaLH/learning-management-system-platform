@@ -20,4 +20,8 @@ A comprehensive Learning Management System built with Spring Boot, Java, and Mav
 
 ## Sequence Diagram:
 
-![Sequence Diagram](docs/SequenceDiagram-v1.png)
+![Sequence Diagram](docs/user-registration.png)
+![Sequence Diagram](docs/user-login.png)
+![Sequence Diagram](docs/teacher-create-course.png)
+![Sequence Diagram](docs/teacher-views-courseList-then-details.png)
+![Sequence Diagram](docs/student-views-courseList-then-details.png)
