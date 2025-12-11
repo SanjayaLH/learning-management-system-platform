@@ -22,9 +22,16 @@ C -> AG: POST /register {Email, Password, FirstName, LastName, Role}
 note right of C: User sends all necessary fields
 
 activate AG
+AG -> AG: Action: Input Validation(Format, Length)
+alt Validation Failed (eg. Invalid Email Format)
+    AG -[#red]-> C: 400 Bad Request
+    deactivate AG
+    stop
+end
 AG -> AS: Registration Request (Details)
 deactivate AG
 activate AS
+AS -> AS: Action: Data Validation(Email, Role)
 
 AS -> US: Query: Check Email Availability (Email)
 activate US
