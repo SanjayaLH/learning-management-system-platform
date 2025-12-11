@@ -23,33 +23,43 @@ note right of C: User sends all necessary fields
 
 activate AG
 AG -> AG: Action: Input Validation(Format, Length)
-alt Validation Failed (eg. Invalid Email Format)
+alt Validation Failed (Invalid Email Format or Insufficient Password Length)
     AG -[#red]-> C: 400 Bad Request
     deactivate AG
-    stop
 end
 AG -> AS: Registration Request (Details)
 deactivate AG
 activate AS
-AS -> AS: Action: Data Validation(Email, Role)
+AS -> AS: Action: Validate Role (Is role valid enum?)
+alt Invalid Role
+    AS -[#red]-> AG: 400 Bad Request (Invalid Role)
+    deactivate AS
+    activate AG
+    AG -[#red]-> C: 400 Bad Request (Invalid Role)
+    deactivate AG
+end
 
 AS -> US: Query: Check Email Availability (Email)
+activate AS
 activate US
 
 alt Email Available (Continue)
     US --> AS: 200 OK (Email not in use)
     deactivate US
+    
 
     AS -> AS: Action: Hash Password (Password)
     note right of AS: Generate password hash
 
     AS -> US: Command: CREATE User Profile (Email, FirstName, LastName, Role)
     activate US
+    deactivate AS
     
     alt Profile Creation Success
         US -> UPDB: INSERT Profile Record
         activate UPDB
         UPDB --> US: User ID (UUID)
+        note right of AS: UUID - Universally Unique Identifier
         deactivate UPDB
         
         US --> AS: User ID (UUID)
@@ -61,23 +71,41 @@ alt Email Available (Continue)
         alt Credentials Save Success
             ACDB --> AS: User Created
             deactivate ACDB
+            AS -> AS: Log: User Registered (Email, User ID)
             AS --> AG: 201 Created (User ID)
-        else Credentials Save Failure (Compensation Needed)
-            ACDB -[#red]-> AS: DB Error
+        else Credentials Save Failure (Compensation Execution)
+            ACDB -[#red]-> AS: DB Error (eg. connection lost)
             deactivate ACDB
-            note right of AS #FFCCCB: **Compensation:** AS -> US: DELETE Profile (User ID)
+            note right of AS #FFCCCB: Start Compensation Scenario
+            AS -> US: Command: DELETE User Profile (User ID)
+            activate US
+
+            alt Profile Deletion Success
+                US -> UPDB: DELETE Profile Record
+                activate UPDB
+                UPDB --> US: Profile Deleted
+                deactivate UPDB
+                US --> AS: 200 OK (Compensation Complete)
+            else Profile Deletion Failure (Log/Alert)
+                US -[#orange]-> AS: 500 Error (Compensation Failed)
+                note right of AS #FFA500: Log Alert: Manual Profile Cleanup Required
+            end
+
+            deactivate US
             AS -[#red]-> AG: 500 Internal Server Error
         end
         
     else Profile Creation Failure
         US -[#red]-> AS: 500 Internal Server Error
         deactivate US
+        AS -> AS: Log: Registration Failure (Profile DB Error)
         AS -[#red]-> AG: 500 Internal Server Error
     end
     
 else Email Already Exists (Conflict)
     US --> AS: 409 Conflict
     deactivate US
+    AS -> AS: Log: Registration Failure (Email Conflict)
     AS -[#red]-> AG: 409 Conflict (Email Registered)
     note right of AG #FFCCCB: User exist please login
 end
