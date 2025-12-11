@@ -1,0 +1,83 @@
+@startuml user-registration
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title User Registration Sequence
+
+actor "User (REST client)" as C
+actor "Client" as C
+box "Gateway Layer"
+    participant "API Gateway" as AG
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AS
+    participant "User Service" as US
+end box
+database "Auth Credentials DB" as ACDB
+database "User Profile DB" as UPDB
+
+autonumber
+
+C -> AG: POST /register {Email, Password, FirstName, LastName, Role}
+note right of C: User sends all necessary fields
+
+activate AG
+AG -> AS: Registration Request (Details)
+deactivate AG
+activate AS
+
+AS -> US: Query: Check Email Availability (Email)
+activate US
+
+alt Email Available (Continue)
+    US --> AS: 200 OK (Email not in use)
+    deactivate US
+
+    AS -> AS: Action: Hash Password (Password)
+    note right of AS: Generate password hash
+
+    AS -> US: Command: CREATE User Profile (Email, FirstName, LastName, Role)
+    activate US
+    
+    alt Profile Creation Success
+        US -> UPDB: INSERT Profile Record
+        activate UPDB
+        UPDB --> US: User ID (UUID)
+        deactivate UPDB
+        
+        US --> AS: User ID (UUID)
+        deactivate US
+
+        AS -> ACDB: Command: INSERT Credentials (User ID, Hashed Password, Role)
+        activate ACDB
+        
+        alt Credentials Save Success
+            ACDB --> AS: User Created
+            deactivate ACDB
+            AS --> AG: 201 Created (User ID)
+        else Credentials Save Failure (Compensation Needed)
+            ACDB -[#red]-> AS: DB Error
+            deactivate ACDB
+            note right of AS #FFCCCB: **Compensation:** AS -> US: DELETE Profile (User ID)
+            AS -[#red]-> AG: 500 Internal Server Error
+        end
+        
+    else Profile Creation Failure
+        US -[#red]-> AS: 500 Internal Server Error
+        deactivate US
+        AS -[#red]-> AG: 500 Internal Server Error
+    end
+    
+else Email Already Exists (Conflict)
+    US --> AS: 409 Conflict
+    deactivate US
+    AS -[#red]-> AG: 409 Conflict (Email Registered)
+    note right of AG #FFCCCB: User exist please login
+end
+
+deactivate AS
+activate AG
+AG --> C: Final Response (Success or Failure Status)
+deactivate AG
+
+@enduml

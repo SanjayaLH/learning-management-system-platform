@@ -1,0 +1,86 @@
+@startuml student-views-courseList-then-details
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title Student Views Course List then Details
+
+actor "Client (Student on REST client)" as C
+box "Gateway Layer"
+    participant "API Gateway" as AG
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AS
+    participant "Course Service" as CS
+    participant "Enrollment Service" as ES
+end box
+database "Course Database" as CD
+
+autonumber
+
+group 1. Fetch List of ALL Available Courses
+    C -> AG: GET /courses/public + JWT
+    note right of C: Request to load course catalog
+
+    activate AG
+    AG -> AS: Validate Token (JWT)
+    activate AS
+    AS -> AG: Token Valid (User ID, Role: STUDENT)
+    deactivate AS
+
+    AG -> CS: Get Public Course List Request (User ID)
+    deactivate AG
+    activate CS
+    
+    CS -> CD: Query: SELECT ID, Title, Teacher_ID, Description_Short FROM Course WHERE Is_Published = TRUE
+    activate CD
+    CD --> CS: List of Public Course Summaries
+    deactivate CD
+
+    CS --> AG: 200 OK (List<CourseSummaryDTO>)
+    deactivate CS
+    activate AG
+    AG --> C: 200 OK (List of Courses)
+    deactivate AG
+end
+
+== Student Clicks a Course they are Enrolled In ==
+
+group 2. Fetch Single Course Details (Requires Enrollment Check)
+    C -> AG: GET /courses/{courseId} + JWT
+    note right of C: Request for full content/details
+
+    activate AG
+    AG -> AS: Validate Token (JWT)
+    activate AS
+    AS -> AG: Token Valid (User ID, Role: STUDENT)
+    deactivate AS
+
+    AG -> ES: Check Enrollment (User ID, Course ID)
+    activate ES
+    ES -> ES: Query Enrollment DB
+    alt Is Enrolled
+        ES --> AG: Enrollment Confirmed (200 OK)
+    else Not Enrolled
+        ES --> AG: Enrollment Rejected (403 Forbidden)
+        deactivate ES
+        AG -[#red]-> C: 403 Forbidden (Not Enrolled)
+        deactivate AG
+    end
+    
+    AG -> CS: Get Course Details Request (Course ID)
+    deactivate ES
+    deactivate AG
+    activate CS
+    
+    CS -> CD: Query: SELECT * FROM Course WHERE ID = {courseId}
+    activate CD
+    CD --> CS: Full Course Record (Details)
+    deactivate CD
+
+    CS --> AG: 200 OK (CourseDetailDTO)
+    deactivate CS
+    activate AG
+    AG --> C: Final Response (200 OK)
+    deactivate AG
+end
+@endumll
