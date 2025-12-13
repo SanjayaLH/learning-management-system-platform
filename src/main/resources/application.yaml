@@ -1,3 +1,29 @@
 spring:
+  # Application Name (Need to correctly nested these all)
   application:
     name: lms-platform
+
+  # Need to correctly outdented to be under 'spring'(datasource error because of this)
+  # MySQL Database Configuration
+  datasource:
+    # Standard URL for a local MySQL instance on the default port (3306)
+    url: jdbc:mysql://localhost:3306/lms_auth_db?createDatabaseIfNotExist=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver # The correct driver class
+
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      # Use 'update' for development; Hibernate will create/update tables
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # Tell Hibernate the dialect for optimization
+        dialect: org.hibernate.dialect.MySQLDialect
+
+# Application Server Port <- this must correctly outdented to be under the root level
+server:
+  port: 8080 # Default port for the monolithic application
