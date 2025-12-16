@@ -1,0 +1,51 @@
+@startuml user-login
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title User Login Sequence
+
+actor "User (REST client)" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Monolithic Layer" #LightBlue
+    participant "Authentication Controller" as AuthController
+    participant "Authentication Service" as AuthService
+end box
+database "Database" as DB
+
+autonumber
+Client -> ApiGateway: POST /login {Email, Password}
+ApiGateway -> AuthController: POST /login {Email, Password}
+
+AuthController -> AuthController: Input Validation (Format, Presence)
+alt Validation Failed
+    AuthController -[#red]-> ApiGateway: 400 Bad Request
+    ApiGateway -[#red]-> Client: 400 Bad Request
+end
+
+AuthController -> AuthService: Method Call: loginUser(Request)
+AuthService -> DB: SELECT passwordHash, role FROM user_credentials WHERE email = ?
+alt Credentials Not Found
+    DB --> AuthService: Result: Empty
+    ' Security Feature: Throw generic error
+    AuthService -[#red]-> AuthController: Throw IllegalArgumentException("Invalid email or password.")
+    AuthController -[#red]-> ApiGateway: 401 Unauthorized
+    ApiGateway -[#red]-> Client: 401 Unauthorized
+end
+DB --> AuthService: Result: passwordHash, role
+AuthService -> AuthService: Action: Verify Password (BCrypt.matches(raw, hash))
+
+alt Password Mismatch
+    ' Security Feature: Throw generic error
+    AuthService -[#red]-> AuthController: Throw IllegalArgumentException("Invalid email or password.")
+    AuthController -[#red]-> ApiGateway: 401 Unauthorized
+    ApiGateway -[#red]-> Client: 401 Unauthorized
+end
+AuthService -> AuthService: Action: Generate Auth Token (JWT Placeholder)
+AuthService -> AuthService: Log: User Logged In
+AuthService --> AuthController: Return: Token String
+AuthController --> ApiGateway: 200 OK (Token)
+ApiGateway --> Client: 200 OK (Token)
+
+@enduml
