@@ -1,0 +1,81 @@
+@startuml teacher-views-courseList-then-details
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+Title Teacher Views Course List then Details
+
+actor "Client (Teacher on REST client)" as C
+box "Gateway Layer"
+    participant "API Gateway" as AG
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AS
+    participant "Course Service" as CS
+end box
+database "Course Database" as CD
+
+autonumber
+
+group 1. Fetch List of Courses
+    C -> AG: GET /courses?ownerId={userId} + JWT
+    note right of C: Initial request to load dashboard
+
+    activate AG
+    AG -> AS: Validate Token (JWT)
+    activate AS
+    AS -> AG: Token Valid (User ID, Role: TEACHER)
+    deactivate AS
+    note right of AG: Authorization check complete
+
+    AG -> CS: Get All Courses Request (User ID)
+    deactivate AG
+    activate CS
+    
+    CS -> CD: Query: SELECT ID, Title FROM Course WHERE Teacher_ID = {userId}
+    activate CD
+    CD --> CS: List of Course Summaries
+    deactivate CD
+    note right of CS: Check ensures teacher owns the course
+
+    CS --> AG: 200 OK (List<CourseSummaryDTO>)
+    deactivate CS
+    activate AG
+    AG --> C: 200 OK (List of Courses)
+    deactivate AG
+end
+
+== Teacher Clicks a Course ==
+
+group 2. Fetch Single Course Details
+    C -> AG: GET /courses/{courseId} + JWT
+    note right of C: Request for full course details
+
+    activate AG
+    AG -> AS: Validate Token (JWT)
+    activate AS
+    AS -> AG: Token Valid (User ID, Role: TEACHER)
+    deactivate AS
+    note right of AG: Authorization check complete
+
+    AG -> CS: Get Course Details Request (User ID, Course ID)
+    deactivate AG
+    activate CS
+
+    CS -> CD: Query: SELECT * FROM Course WHERE ID = {courseId} AND Teacher_ID = {userId}
+    activate CD
+    alt Course Found & Owned
+        CD --> CS: Full Course Record (Details)
+        deactivate CD
+        note right of CS: Check ensures teacher owns the course
+        CS --> AG: 200 OK (CourseDetailDTO)
+    else Course Not Found or Access Denied
+        CD --> CS: Access Error
+        deactivate CD
+        CS --> AG: 403 Forbidden / 404 Not Found
+    end
+
+    deactivate CS
+    activate AG
+    AG --> C: Final Response (200 OK or Error)
+    deactivate AG
+end
+@enduml

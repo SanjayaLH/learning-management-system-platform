@@ -1,0 +1,80 @@
+@startuml user-registration
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title User Registration Sequence
+
+actor "User (REST client)" as Client
+actor "Client" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Monolithic Layer" #LightBlue
+    participant "Authentication Controller" as AuthController
+    participant "Authentication Service" as AuthService
+    participant "User Service" as UserService
+end box
+database "Database" as DB
+
+autonumber
+
+Client -> ApiGateway: POST /register
+    note right of Client
+    User sends all necessary fields
+        - Email
+        - Password
+        - FirstName
+        - LastName
+        - Role
+    end note
+ApiGateway -> AuthController: POST /register
+AuthController -> AuthController: Action: Input Validation(Format, Length)
+    alt Validation Failed (Invalid Email Format or Insufficient Password Length)
+        AuthController -[#red]-> ApiGateway: 400 Bad Request
+        ApiGateway -[#red]-> Client: 400 Bad Request
+    end
+AuthController -> AuthService: Method Call: registerUser(Request)
+AuthService -> AuthService: Action: Check Email Availability
+AuthService -> DB: SELECT * FROM user_credentials
+
+alt Is Email Exists
+    DB --> AuthService: Result: Credentials Found
+    AuthService -[#red]-> AuthController: Exception (409 Conflict)
+    AuthController -[#red]-> ApiGateway: 409 Conflict (Email Registered)
+    ApiGateway -[#red]-> Client: 409 Conflict (Email Registered)
+end
+DB --> AuthService: Result: Email Not Found
+AuthService -> UserService: Method Call: createProfile(Details)
+UserService -> DB: INSERT User Profile
+DB --> UserService: Return: User ID (UUID)
+note right of AuthService: UUID - Universally Unique Identifier
+UserService --> AuthService: Return: User ID
+AuthService -> AuthService: Action: Hash Password
+note right of AuthService: try { Save Credentials... } catch { Compensation... }
+AuthService -> DB: INSERT User Credentials (User ID, Hash)
+alt Credentials Save Success
+    DB --> AuthService: New User Registered Successfully
+    deactivate DB
+    AuthService -> AuthService: Log: User Registered
+    AuthService --> AuthController: Return: Success
+    AuthController --> ApiGateway: 201 Created
+        note right of ApiGateway
+            201 Created:
+            the request has succeeded and, as a result, 
+            one or more new resources have been successfully created 
+        end note
+    ApiGateway --> Client: Final Response 201 Created(Success Status)
+    
+else Credentials Save Failure (DB Error)
+    DB -[#red]-> AuthService: DB Error
+    ' Compensation Call
+    AuthService -> UserService: Method Call: deleteProfile(User ID)
+    UserService -> DB: DELETE User Profile
+    DB --> UserService: User Profile Deleted
+    UserService --> AuthService: Compensation Complete
+    AuthService -[#red]-> AuthController: Throw RuntimeException
+    AuthController --> ApiGateway: 500 Error(Internal Server Error)
+    ApiGateway --> Client: Final Response- 500 Error (Failure Status)
+end
+
+@enduml

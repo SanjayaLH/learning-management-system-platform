@@ -1,0 +1,57 @@
+@startuml user-login
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title User Login Sequence
+
+actor "User (REST client)" as C
+box "Gateway Layer"
+    participant "API Gateway" as AG
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AS
+end box
+database "Auth Credentials DB" as ACDB
+
+autonumber
+
+C -> AG: POST /login (Email, Password)
+note right of C: User submits login credentials
+
+activate AG
+AG -> AS: Login Request (Email, Password)
+deactivate AG
+activate AS
+
+AS -> ACDB: Query: Get Hashed Password for Email
+activate ACDB
+
+alt Credentials Found
+    ACDB --> AS: Hashed Password, User ID, Role
+    deactivate ACDB
+
+    AS -> AS: Action: Verify Password (Password vs. Hash)
+    note right of AS: Use BCrypt or similar algorithm
+
+    alt Password Verified
+        AS -> AS: Action: Generate JWT (User ID, Role, Expiry)
+        note right of AS: Token is digitally signed
+        
+        AS --> AG: 200 OK (JWT Token)
+    
+    else Password Mismatch
+        AS --> AG: 401 Unauthorized (Invalid Credentials)
+    end
+
+else Credentials Not Found
+    ACDB --> AS: Response: Not Found
+    deactivate ACDB
+    AS --> AG: 401 Unauthorized (Invalid Credentials)
+end
+
+deactivate AS
+activate AG
+AG --> C: Final Response (JWT Token or Error)
+deactivate AG
+
+@enduml

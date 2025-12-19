@@ -1,0 +1,104 @@
+@startuml teacher-views-courseList-then-details
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+Title Teacher Views Course List then Details
+
+actor "Client (Teacher on REST client)" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Monolithic Layer" #LightBlue
+    participant "Course Controller" as CourseController
+    participant "Authentication Service" as AuthService
+    participant "Course Service" as CourseService
+    participant "Course Repository" as CourseRepository
+end box
+database "Database" as DB
+
+autonumber
+
+== Step 1: View All Courses ==
+group 1. Fetch List of Courses
+    Client -> ApiGateway: GET /courses + JWT
+    ApiGateway -> CourseController: GET /courses + JWT
+	note right of CourseController 
+        The course controller endpoint is 
+        protected by the spring security 
+        @PreAuthorize("hasRole('TEACHER')")
+    end note
+	
+	CourseController -> AuthService: Validate Token (JWT)
+    note right of CourseController: Delegates the validation of the token.
+	
+	alt Token Validation Success
+        AuthService -> CourseController: Token Valid (User ID, Role: TEACHER)
+        CourseController -> CourseService: getAllCourses
+        note right CourseController: Get All Course List Request (User ID)
+        CourseService -> CourseRepository: getAllCourses
+        CourseRepository -> DB: Query: SELECT ID, Title, Teacher_ID, Description_Short FROM Course WHERE Is_Published = TRUE
+        alt Get All CourseDetail Success
+            DB --> CourseRepository: List of All Course Summaries
+            CourseRepository --> CourseService: List of CourseSummary
+            CourseService --> CourseController: List of CourseSummary
+            CourseController --> ApiGateway: 200 OK (List<CourseSummaryDTO>)
+            ApiGateway --> Client: 200 OK (List of Courses)
+        else Get All CourseDetail Failure
+            DB -[#red]-> CourseRepository: DB Error (Connection Lost)
+            CourseRepository -[#red]-> CourseService: DB Error (Connection Lost)
+            CourseService -[#red]-> CourseController: DB Error (Connection Lost)
+            CourseController -[#red]-> ApiGateway: 500 Internal Server Error
+            ApiGateway -[#red]-> Client: 500 Internal Server Error
+        end
+        
+    else Token Validation Failed
+        AuthService --> CourseController: Token Validation Failed
+        CourseController --> ApiGateway: Token Validation Failed (403 Forbidden)
+        ApiGateway -[#red]-> Client: 403 Forbidden (No Course List)
+    end
+
+end
+== Teacher Clicks a Course ==
+
+group 2. Fetch Single Course Details
+	Client -> ApiGateway: GET /courses/{courseId} + JWT
+    note right of Client: Request for full content/details
+	
+	ApiGateway -> CourseController: GET /courses/{courseId} + JWT
+	note right of CourseController 
+        The course controller endpoint is 
+        protected by the spring security 
+        @PreAuthorize("hasRole('TEACHER')")
+    end note
+	
+	CourseController -> AuthService: Validate Token (JWT)
+    note right of CourseController: Delegates the validation of the token.
+	
+	alt Token Validation Success
+        AuthService -> CourseController: Token Valid (User ID, Role: TEACHER)
+        CourseController -> CourseService: getCourseById(courseId)
+        note right CourseController: Get Course Details specific to the requested courseId Request (courseId)
+        CourseService -> CourseRepository: getCourseById(courseId)
+        CourseRepository -> DB: Query: SELECT * FROM Course WHERE ID = {courseId}
+        alt Get All CourseDetail Success
+            DB --> CourseRepository: Full Course Record (Details)
+            CourseRepository --> CourseService: Full Course Record (Details)
+            CourseService --> CourseController: Course Detail
+            CourseController --> ApiGateway: 200 OK (CourseDetailDTO)
+            ApiGateway --> Client: Final Response (200 OK)
+        else Get All CourseDetail Failure
+            DB -[#red]-> CourseRepository: DB Error (Connection Lost)
+            CourseRepository -[#red]-> CourseService: DB Error (Connection Lost)
+            CourseService -[#red]-> CourseController: DB Error (Connection Lost)
+            CourseController -[#red]-> ApiGateway: 500 Internal Server Error
+            ApiGateway -[#red]-> Client: 500 Internal Server Error
+        end
+        
+    else Token Validation Failed
+        AuthService --> CourseController: Token Validation Failed
+        CourseController --> ApiGateway: Token Validation Failed (403 Forbidden)
+        ApiGateway -[#red]-> Client: 403 Forbidden (No Course List)
+    end
+	
+
+end
+@enduml

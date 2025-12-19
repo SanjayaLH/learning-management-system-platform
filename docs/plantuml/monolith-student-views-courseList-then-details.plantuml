@@ -1,0 +1,179 @@
+@startuml student-views-courseList-then-details
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title Student Views Course List then Details
+
+actor "Client (Student on REST client)" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Monolithic Layer" #LightBlue
+    participant "Course Controller" as CourseController
+    participant "Enrollment Controller" as EnrollmentController
+    participant "Authentication Service" as AuthService
+    participant "Course Service" as CourseService
+    participant "Course Repository" as CourseRepository
+    participant "Enrollment Service" as EnrollmentService
+    participant "Enrollment Repository" as EnrollmentRepository
+end box
+database "Database" as DB
+
+autonumber
+
+group 1. Fetch List of ALL Available Courses
+    Client -> ApiGateway: GET /courses + JWT
+    note right of Client: Request to load course catalog
+
+    ApiGateway -> CourseController: GET /courses + JWT
+    note right of CourseController 
+        The course controller endpoint is 
+        protected by the spring security 
+        @PreAuthorize("hasRole('STUDENT')")
+    end note
+
+    activate CourseController
+    CourseController -> AuthService: Validate Token (JWT)
+    note right of CourseController: Delegates the validation of the token.
+    activate AuthService
+    deactivate CourseController
+
+    alt Token Validation Success
+        AuthService -> CourseController: Token Valid (User ID, Role: STUDENT)
+        deactivate AuthService
+        activate CourseController
+        CourseController -> CourseService: getAllCourses
+        note right CourseController: Get All Course List Request (User ID)
+        deactivate CourseController
+        activate CourseService
+        CourseService -> CourseRepository: getAllCourses
+        deactivate CourseService
+        activate CourseRepository
+        CourseRepository -> DB: Query: SELECT ID, Title, Teacher_ID, Description_Short FROM Course WHERE Is_Published = TRUE
+        deactivate CourseRepository
+        activate DB
+        alt Get All CourseDetail Success
+            DB --> CourseRepository: List of All Course Summaries
+            deactivate DB
+            activate CourseRepository
+            CourseRepository --> CourseService: List of CourseSummary
+            deactivate CourseRepository
+            activate CourseService
+            CourseService --> CourseController: List of CourseSummary
+            deactivate CourseService
+            activate CourseController
+            CourseController --> ApiGateway: 200 OK (List<CourseSummaryDTO>)
+            deactivate CourseController
+            activate ApiGateway
+            ApiGateway --> Client: 200 OK (List of Courses)
+            deactivate ApiGateway
+        else Get All CourseDetail Failure
+            DB -[#red]-> CourseRepository: DB Error (Connection Lost)
+            CourseRepository -[#red]-> CourseService: DB Error (Connection Lost)
+            CourseService -[#red]-> CourseController: DB Error (Connection Lost)
+            CourseController -[#red]-> ApiGateway: 500 Internal Server Error
+            ApiGateway -[#red]-> Client: 500 Internal Server Error
+        end
+        
+    else Token Validation Failed
+        activate AuthService
+        AuthService --> CourseController: Token Validation Failed
+        deactivate AuthService
+        activate CourseController
+        CourseController --> ApiGateway: Token Validation Failed (403 Forbidden)
+        deactivate CourseController
+        activate ApiGateway
+        ApiGateway -[#red]-> Client: 403 Forbidden (No Course List)
+        deactivate ApiGateway
+    end
+
+end
+
+== Student Clicks a Course they are Enrolled In ==
+
+group 2. Fetch Single Course Details (Requires Enrollment Check)
+    Client -> ApiGateway: GET /courses/{courseId} + JWT
+    note right of Client: Request for full content/details
+
+    activate ApiGateway
+    ApiGateway -> EnrollmentController: GET /courses/{courseId} + JWT
+    deactivate ApiGateway
+    activate EnrollmentController
+    EnrollmentController -> AuthService: Validate Token (JWT)
+    deactivate EnrollmentController
+    
+    alt Token Validation Success
+        activate AuthService
+        AuthService -> EnrollmentController: Token Valid (User ID, Role: STUDENT)
+        deactivate AuthService
+        activate EnrollmentController
+        EnrollmentController -> EnrollmentService: Check Enrollment (User ID, Course ID)
+        deactivate EnrollmentController
+        activate EnrollmentService
+        EnrollmentService -> EnrollmentRepository: Check Enrollment (User ID, Course ID)
+        EnrollmentRepository -> DB: Query DB
+
+        alt Enrollment Verification Success
+            alt Is Enrolled
+                DB --> EnrollmentRepository: Is Enrolled True
+                EnrollmentRepository --> EnrollmentService: Is Enrolled True
+                EnrollmentService -->EnrollmentController: Is Enrolled True
+                EnrollmentController --> ApiGateway: Enrollment Confirmed (200 OK)
+            else Not Enrolled
+                DB --> EnrollmentRepository: Is Enrolled false
+                EnrollmentRepository --> EnrollmentService: Is Enrolled false
+                EnrollmentService --> EnrollmentController: Is Enrolled == false, Message - Student Not Enrolled, Please Enrolled
+                EnrollmentController --> ApiGateway: Enrollment Rejected (403 Forbidden)
+                deactivate EnrollmentController
+                ApiGateway -[#red]-> Client: 403 Forbidden (Student Not Enrolled, Please Enrolled)
+                deactivate ApiGateway
+            end
+        else Enrollment Verification Failure
+            DB -[#red]-> EnrollmentRepository: DB Error (Connection Lost)
+            EnrollmentRepository -[#red]-> EnrollmentService: DB Error (Connection Lost)
+            EnrollmentService -[#red]-> EnrollmentController: DB Error (Connection Lost)
+            EnrollmentController -[#red]-> ApiGateway: 500 Internal Server Error
+            ApiGateway -[#red]-> Client: 500 Internal Server Error
+        end
+       
+        ApiGateway -> CourseController: Get Course Details Request (Course ID)
+        CourseController -> CourseService: Get Course Details Request (Course ID)
+        deactivate EnrollmentService
+        deactivate ApiGateway
+        activate CourseService
+        
+        CourseService -> CourseRepository: getCourseDetails(courseId)
+        CourseRepository -> DB: Query: SELECT * FROM Course WHERE ID = {courseId}
+        activate DB
+
+        alt Get Course Details Success
+            DB --> CourseRepository: Full Course Record (Details)
+            CourseRepository --> CourseService: Full Course Record (Details)
+            deactivate DB
+            CourseService --> CourseController: Course Detail
+            CourseController --> ApiGateway: 200 OK (CourseDetailDTO)
+            deactivate CourseService
+            activate ApiGateway
+            ApiGateway --> Client: Final Response (200 OK)
+            deactivate ApiGateway
+        else Get Course Details Failure
+            DB -[#red]-> CourseRepository: DB Error (Connection Lost)
+            CourseRepository -[#red]-> CourseService: DB Error (Connection Lost)
+            CourseService -[#red]-> CourseController: DB Error (Connection Lost)
+            CourseController -[#red]-> ApiGateway: 500 Internal Server Error
+            ApiGateway -[#red]-> Client: 500 Internal Server Error
+        end 
+        
+    else Token Validation Failed
+        activate AuthService
+        AuthService --> EnrollmentController: Token Validation Failed
+        deactivate AuthService
+        activate EnrollmentController
+        EnrollmentController --> ApiGateway: Token Validation Failed (403 Forbidden)
+        deactivate EnrollmentController
+        activate ApiGateway
+        ApiGateway -[#red]-> Client: 403 Forbidden (No Course List)
+        deactivate ApiGateway
+    end
+end
+@endumll

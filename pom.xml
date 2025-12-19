@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.sanjaya</groupId>
-	<artifactId>lms-platform</artifactId>
+	<artifactId>lmsplatform</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>lms-platform</name>
 	<description>Demo project for Spring Boot</description>
@@ -42,19 +42,25 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
-
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
+
 		<!-- Spring Boot Test (JUnit 5 included) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- H2 In-Memory Database for Tests -->
+		<!-- mysql Database for runtime(this works both main app and tests) -->
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- H2 Database for tests-->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
