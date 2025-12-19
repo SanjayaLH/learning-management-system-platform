@@ -8,7 +8,7 @@ actor "Client (Student on REST client)" as Client
 box "Gateway Layer"
     participant "API Gateway" as ApiGateway
 end box
-box "Monolithic Layer"
+box "Monolithic Layer" #LightBlue
     participant "Course Controller" as CourseController
     participant "Enrollment Controller" as EnrollmentController
     participant "Authentication Service" as AuthService
@@ -150,7 +150,7 @@ group 2. Fetch Single Course Details (Requires Enrollment Check)
             DB --> CourseRepository: Full Course Record (Details)
             CourseRepository --> CourseService: Full Course Record (Details)
             deactivate DB
-            CourseService --> CourseController: CourseDetail
+            CourseService --> CourseController: Course Detail
             CourseController --> ApiGateway: 200 OK (CourseDetailDTO)
             deactivate CourseService
             activate ApiGateway
