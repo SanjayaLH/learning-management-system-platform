@@ -1,6 +1,7 @@
 package com.sanjaya.lms_platform.controller;
 
 import com.sanjaya.lms_platform.dto.LoginRequest;
+import com.sanjaya.lms_platform.dto.LoginResponse;
 import com.sanjaya.lms_platform.dto.RegistrationRequest;
 import com.sanjaya.lms_platform.model.UserCredentials;
 import com.sanjaya.lms_platform.service.AuthService;
@@ -20,11 +21,11 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             // Call the service layer to verify credentials
-            String token = authService.loginUser(request);
+            LoginResponse response = authService.loginUser(request);
 
             // Return success response (200 OK) with the token
             // Note: In a real app, this would return a JSON object like {"token": "JWT_STRING"}
-            return ResponseEntity.ok(token);
+            return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
             // Handle Unauthorized/Invalid Credentials (401)
@@ -32,7 +33,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {
             // Handle generic server errors (500)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Login failed due to server error.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Login failed: " + e.getMessage());
         }
     }
 

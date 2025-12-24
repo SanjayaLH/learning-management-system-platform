@@ -66,6 +66,12 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- JWT library-->
+		<dependency>
+			<groupId>org.bitbucket.b_c</groupId>
+			<artifactId>jose4j</artifactId>
+			<version>0.9.4</version>
+		</dependency>
 	</dependencies>
 
 	<build>
