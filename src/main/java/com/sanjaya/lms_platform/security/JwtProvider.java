@@ -27,4 +27,8 @@ public class JwtProvider {
 
         return jws.getCompactSerialization();
     }
+
+    public Key getKey() {
+        return this.key;
+    }
 }
