@@ -1,15 +1,23 @@
 package com.sanjaya.lms_platform.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.sanjaya.lms_platform.dto.CourseRequest;
+import com.sanjaya.lms_platform.model.Course;
+import com.sanjaya.lms_platform.service.CourseService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/courses")
+@RequiredArgsConstructor
 public class CourseController {
 
-    @GetMapping("/test")
-    public String testSecurity() {
-        return "Congratulations! The Bouncer recognized you as a TEACHER.";
+    private final CourseService courseService;
+
+    @PostMapping
+    public ResponseEntity<Course> createCourse(@RequestBody CourseRequest request) {
+        Course newCourse = courseService.createCourse(request);
+        return new ResponseEntity<>(newCourse, HttpStatus.CREATED);
     }
 }
