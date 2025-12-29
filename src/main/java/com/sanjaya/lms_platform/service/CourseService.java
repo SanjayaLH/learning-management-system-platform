@@ -9,11 +9,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class CourseService {
     private final CourseRepository courseRepository;
     private final UserCredentialsRepository userRepository;
+
+    public List<Course> getAllCourses() {
+        return courseRepository.findAll();
+    }
 
     public Course createCourse(CourseRequest request) {
         // Get the email of the logged-in teacher from the Security Context

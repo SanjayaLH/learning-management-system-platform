@@ -4,6 +4,7 @@ import com.sanjaya.lms_platform.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -41,8 +42,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Allow public access to the registration and login endpoint
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        // Protect Course endpoints for TEACHERS only
-                        .requestMatchers("/api/v1/courses/**").hasRole("TEACHER")
+                        // POST (Create) is only for Teachers
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses/**").hasRole("TEACHER")
+                        // GET (View) is for both Teachers and Students
+                        .requestMatchers(HttpMethod.GET, "/api/v1/courses/**").hasAnyRole("TEACHER", "STUDENT")
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated()
                 )
