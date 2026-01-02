@@ -17,6 +17,7 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final UserCredentialsRepository userRepository;
 
+
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
     }

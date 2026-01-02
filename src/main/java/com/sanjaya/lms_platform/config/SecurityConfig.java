@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/**").hasRole("TEACHER")
                         // GET (View) is for both Teachers and Students
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses/**").hasAnyRole("TEACHER", "STUDENT")
+                        //For New Enrollments
+                        .requestMatchers(HttpMethod.POST, "/api/v1/enrollments/**").hasRole("STUDENT")
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated()
                 )
