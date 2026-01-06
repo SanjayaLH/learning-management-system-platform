@@ -9,6 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -26,22 +27,37 @@ public class EnrollmentService {
         UserCredentials student = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
+        //Role Validation (Safety check)
+        if (!student.getRole().name().equals("STUDENT")) {
+            throw new RuntimeException("Only students can enroll in courses.");
+        }
+
         //Identify the course
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
+        //Enrollment duplicate Check
+        if (student.getEnrolledCourses().contains(course)) {
+            throw new RuntimeException("You are already enrolled in this course: " + course.getTitle());
+        }
+
         //Perform the enrollment (adds to the Join Table)
         student.getEnrolledCourses().add(course);
-        userRepository.save(student);
+        course.getStudents().add(student);
+        // Use saveAndFlush to forces to write to the 'enrollments' table NOW
+        userRepository.saveAndFlush(student);
     }
 
     @Transactional(readOnly = true)
-    public Set<Course> getStudentCourses() {
+    public List<Course> getStudentCourses() {
         String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        UserCredentials student = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Student not found"));
-        //forces Hibernate to initialize the collection
-        student.getEnrolledCourses().size();
-        return student.getEnrolledCourses();
+
+        System.out.println("Fetching courses for: " + email);
+
+        // Using the Native Query from CourseRepository to bypass Hibernate's proxy issues
+        List<Course> courses = courseRepository.findCoursesByStudentEmail(email);
+
+        System.out.println("Courses found in DB: " + courses.size());
+        return courses;
     }
 }

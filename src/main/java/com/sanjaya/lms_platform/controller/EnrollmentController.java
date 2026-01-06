@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -18,11 +19,11 @@ public class EnrollmentController {
     @PostMapping("/{courseId}")
     public ResponseEntity<String> enroll(@PathVariable Long courseId) {
         enrollmentService.enroll(courseId);
-        return ResponseEntity.ok("Enrolled successfully" + courseId);
+        return ResponseEntity.ok("Enrolled successfully for " + courseId);
     }
 
     @GetMapping("/my-courses")
-    public ResponseEntity<Set<Course>> getMyCourses() {
+    public ResponseEntity<List<Course>> getMyCourses() {
         return ResponseEntity.ok(enrollmentService.getStudentCourses());
     }
 }
