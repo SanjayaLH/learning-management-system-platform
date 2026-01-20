@@ -69,6 +69,8 @@ public class AuthService {
         UserCredentials credentials = UserCredentials.builder()
                 .email(request.getEmail())
                 .passwordHash(hashedPassword)
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
                 .role(Role.valueOf(request.getRole().toUpperCase()))
                 .build();
 

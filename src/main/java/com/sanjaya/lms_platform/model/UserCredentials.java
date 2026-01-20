@@ -46,4 +46,8 @@ public class UserCredentials {
     @JsonIgnoreProperties({"students", "teacher"})
     private Set<Course> enrolledCourses = new HashSet<>();
 
+    private String firstName;
+    private String lastName;
+
+
 }

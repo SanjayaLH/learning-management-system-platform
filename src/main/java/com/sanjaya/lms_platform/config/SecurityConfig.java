@@ -48,6 +48,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses/**").hasAnyRole("TEACHER", "STUDENT")
                         //For New Enrollments
                         .requestMatchers(HttpMethod.POST, "/api/v1/enrollments/**").hasRole("STUDENT")
+                        //For profile view
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/myprofile").hasAnyRole("TEACHER", "STUDENT")
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated()
                 )
