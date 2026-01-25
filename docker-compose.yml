@@ -1,0 +1,28 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: lms-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: lms_auth_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306" # Allows you to still see the DB using MySQL Workbench
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  app:
+    build: .
+    container_name: lms-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db # Wait for the DB to be ready
+    environment:
+      # We point the URL to 'db' (the service name above)
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/lms_auth_db?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+volumes:
+  mysql_data:
