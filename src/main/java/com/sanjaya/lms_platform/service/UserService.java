@@ -14,7 +14,14 @@ public class UserService {
     private final UserCredentialsRepository userRepository;
 
     public ProfileResponse getMyProfile() {
-        String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+
+        if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+            email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+        } else {
+            email = principal.toString();
+        }
 
         UserCredentials user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));

@@ -72,6 +72,12 @@
 			<artifactId>jose4j</artifactId>
 			<version>0.9.4</version>
 		</dependency>
+		<!-- For Integration testing-->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
