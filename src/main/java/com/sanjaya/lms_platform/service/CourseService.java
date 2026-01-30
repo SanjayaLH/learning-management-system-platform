@@ -24,7 +24,14 @@ public class CourseService {
 
     public Course createCourse(CourseRequest request) {
         // Get the email of the logged-in teacher from the Security Context
-        String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        //String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+        if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+            email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+        } else {
+            email = principal.toString();
+        }
 
         // Find the Teacher entity in the DB
         UserCredentials teacher = userRepository.findByEmail(email)

@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test") // Uses your application-test.yml (H2 database)
+@ActiveProfiles("test") // Uses the application-test.yml (H2 database)
 @Transactional // Adds automatic rollback after each test
 public class UserControllerIT {
 
@@ -28,7 +28,7 @@ public class UserControllerIT {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserCredentialsRepository userRepository; // Match your repo name
+    private UserCredentialsRepository userRepository; // Match the repo name
 
     @BeforeEach
     void setUp() {
