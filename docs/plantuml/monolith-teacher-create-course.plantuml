@@ -1,0 +1,71 @@
+@startuml teacher-create-course
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+Title Teacher Creates a New Course
+
+actor "Client (Teacher on REST client)" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Monolithic Layer" #LightBlue
+    participant "Course Controller" as CourseController
+    participant "Authentication Service" as AuthService
+    participant "Course Service" as CourseService
+    participant "Course Repository" as CourseRepository
+end box
+database "Database" as DB
+
+autonumber
+
+Client -> ApiGateway: POST /courses {details} + JWT
+note right of ApiGateway: Request to create course, includes auth token
+
+ApiGateway -> CourseController: POST /courses {details} + JWT
+	note right of CourseController 
+        The course controller endpoint is 
+        protected by the spring security 
+        @PreAuthorize("hasRole('TEACHER')")
+    end note
+	
+	CourseController -> AuthService: Validate Token (JWT)
+    note right of CourseController: Delegates the validation of the token.
+	
+	alt Token Validation Success
+        AuthService -> CourseController: Token Valid (User ID, Role: TEACHER)
+        CourseController -> CourseController: Action: Validate RequestBody (DTO)
+		
+		alt RequestBody Validation Success
+			CourseController -> CourseService: createCourse(DTO)
+			CourseService -> CourseService: Action: Get Teacher Email from Security Context
+			CourseService -> CourseService: Map DTO to CourseEntity (Set Owner)
+			CourseService -> CourseRepository: save(CourseEntity)
+			CourseRepository -> DB: Query: INSERT INTO courses (...)
+		
+			alt Creates New Course Success
+				DB --> CourseRepository: Generated ID & Timestamp
+				CourseRepository --> CourseService: Saved Entity
+				CourseService --> CourseController: Created CourseDTO
+				CourseController --> ApiGateway: 201 Created (with Course Details)
+				ApiGateway --> Client: 201 Created (with Course Details)
+			else Creates New Course Failure
+				DB -[#red]-> CourseRepository: DB Error (Connection Lost)
+				CourseRepository -[#red]-> CourseService: DB Error (Connection Lost)
+				CourseService -[#red]-> CourseController: DB Error (Connection Lost)
+				CourseController -[#red]-> ApiGateway: 500 Internal Server Error
+				ApiGateway -[#red]-> Client: 500 Internal Server Error
+			end
+		
+		else RequestBody Validation Failed
+			CourseController -[#red]-> ApiGateway: 400 Bad Request (Invalid Data)
+			ApiGateway -[#red]-> Client: 400 Bad Request (Invalid Data)
+		end
+		
+        
+    else Token Validation Failed
+        AuthService --> CourseController: Token Validation Failed
+        CourseController --> ApiGateway: Token Validation Failed (403 Forbidden)
+        ApiGateway -[#red]-> Client: 403 Forbidden (No Course List)
+    end
+
+
+@enduml

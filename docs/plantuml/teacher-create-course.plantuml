@@ -1,0 +1,65 @@
+@startuml teacher-create-course
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+Title Teacher Creates a New Course
+
+actor "Client (Teacher on REST client)" as C
+box "Gateway Layer"
+    participant "API Gateway" as AG
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AS
+    participant "Course Service" as CS
+end box
+database "Course Database" as CD
+
+autonumber
+
+C -> AG: POST /courses {details} + JWT
+note right of AG: Request to create course, includes auth token
+
+activate AG
+AG -> AS: Validate Token (JWT)
+activate AS
+AS -> AG: Token Valid (User ID, Role: TEACHER)
+deactivate AS
+note right of AG: Authorization check complete
+
+AG -> CS: Create Course Request (User ID, Course Details)
+deactivate AG
+
+activate CS
+CS -> CS: Validate Course Details
+note right of CS: Check required fields, etc.
+
+alt Success Path (DB Available)
+    CS -> CD: INSERT New Course (Teacher ID, Details)
+    activate CD
+    alt DB Success
+        CD --> CS: Course ID (123)
+        deactivate CD
+
+        CS --> AG: 201 Created (Course ID: 123)
+    else DB Failure (Timeout/Connection Error)
+        CD -[#red]> CS: Database Connection Error
+        deactivate CD
+        note right of CS #FFCCCB: Rollback any pending transactions
+        CS -[#red]-> AG: 503 Service Unavailable (DB Error)
+    end
+else Network Failure (Gateway to Course Service)
+    note over AG, CS #FFCCCB: Network Interruption / CS Down
+    AG -[#red]>x CS: Cannot connect
+    AG -[#red]-> C: 504 Gateway Timeout
+end
+
+deactivate CS
+activate AG
+
+alt Success Path
+    AG --> C: 201 Created (Course ID: 123)
+else Failure Path
+    AG -[#red]-> C: Error Response (5xx Status)
+end
+deactivate AG
+
+@enduml

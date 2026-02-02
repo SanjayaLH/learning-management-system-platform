@@ -1,0 +1,118 @@
+@startuml user-registration
+skinparam style strictuml
+skinparam SequenceMessageAlignment center
+
+Title User Registration Sequence
+
+actor "User (REST client)" as Client
+actor "Client" as Client
+box "Gateway Layer"
+    participant "API Gateway" as ApiGateway
+end box
+box "Microservices Layer"
+    participant "Authentication Service" as AuthService
+    participant "User Service" as UserService
+end box
+database "Auth Credentials DB" as AuthCredDB
+database "User Profile DB" as UserProfDB
+
+autonumber
+
+Client -> ApiGateway: POST /register {Email, Password, FirstName, LastName, Role}
+note right of Client: User sends all necessary fields
+
+activate ApiGateway
+ApiGateway -> ApiGateway: Action: Input Validation(Format, Length)
+alt Validation Failed (Invalid Email Format or Insufficient Password Length)
+    ApiGateway -[#red]-> Client: 400 Bad Request
+    deactivate ApiGateway
+end
+ApiGateway -> AuthService: Registration Request (Details)
+deactivate ApiGateway
+activate AuthService
+AuthService -> AuthService: Action: Validate Role (Is role valid enum?)
+alt Invalid Role
+    AuthService -[#red]-> ApiGateway: 400 Bad Request (Invalid Role)
+    deactivate AuthService
+    activate ApiGateway
+    ApiGateway -[#red]-> Client: 400 Bad Request (Invalid Role)
+    deactivate ApiGateway
+end
+
+AuthService -> UserService: Query: Check Email Availability (Email)
+activate AuthService
+activate UserService
+
+alt Email Available (Continue)
+    UserService --> AuthService: 200 OK (Email not in use)
+    deactivate UserService
+    
+
+    AuthService -> AuthService: Action: Hash Password (Password)
+    note right of AuthService: Generate password hash
+
+    AuthService -> UserService: Command: CREATE User Profile (Email, FirstName, LastName, Role)
+    activate UserService
+    deactivate AuthService
+    
+    alt Profile Creation Success
+        UserService -> UserProfDB: INSERT Profile Record
+        activate UserProfDB
+        UserProfDB --> UserService: User ID (UUID)
+        note right of AuthService: UUID - Universally Unique Identifier
+        deactivate UserProfDB
+        
+        UserService --> AuthService: User ID (UUID)
+        deactivate UserService
+
+        AuthService -> AuthCredDB: Command: INSERT Credentials (User ID, Hashed Password, Role)
+        activate AuthCredDB
+        
+        alt Credentials Save Success
+            AuthCredDB --> AuthService: User Created
+            deactivate AuthCredDB
+            AuthService -> AuthService: Log: User Registered (Email, User ID)
+            AuthService --> ApiGateway: 201 Created (User ID)
+        else Credentials Save Failure (Compensation Execution)
+            AuthCredDB -[#red]-> AuthService: DB Error (eg. connection lost)
+            deactivate AuthCredDB
+            note right of AuthService #FFCCCB: Start Compensation Scenario
+            AuthService -> UserService: Command: DELETE User Profile (User ID)
+            activate UserService
+
+            alt Profile Deletion Success
+                UserService -> UserProfDB: DELETE Profile Record
+                activate UserProfDB
+                UserProfDB --> UserService: Profile Deleted
+                deactivate UserProfDB
+                UserService --> AuthService: 200 OK (Compensation Complete)
+            else Profile Deletion Failure (Log/Alert)
+                UserService -[#orange]-> AuthService: 500 Error (Compensation Failed)
+                note right of AuthService #FFA500: Log Alert: Manual Profile Cleanup Required
+            end
+
+            deactivate UserService
+            AuthService -[#red]-> ApiGateway: 500 Internal Server Error
+        end
+        
+    else Profile Creation Failure
+        UserService -[#red]-> AuthService: 500 Internal Server Error
+        deactivate UserService
+        AuthService -> AuthService: Log: Registration Failure (Profile DB Error)
+        AuthService -[#red]-> ApiGateway: 500 Internal Server Error
+    end
+    
+else Email Already Exists (Conflict)
+    UserService --> AuthService: 409 Conflict
+    deactivate UserService
+    AuthService -> AuthService: Log: Registration Failure (Email Conflict)
+    AuthService -[#red]-> ApiGateway: 409 Conflict (Email Registered)
+    note right of ApiGateway #FFCCCB: User exist please login
+end
+
+deactivate AuthService
+activate ApiGateway
+ApiGateway --> Client: Final Response (Success or Failure Status)
+deactivate ApiGateway
+
+@enduml
